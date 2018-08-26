@@ -1,10 +1,13 @@
 ﻿using System;
+using System.Collections;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using HutongGames.PlayMaker.Actions;
 using ModCommon;
 using Modding;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Debug = System.Diagnostics.Debug;
 using Logger = Modding.Logger;
 
@@ -14,6 +17,9 @@ namespace combomod
     // ReSharper disable once ClassNeverInstantiated.Global Used implicitly
     public class combo_mod : Mod, ITogglableMod
     {
+        private GameObject menuCanvas;
+        private GameObject menuDrawText;
+        
         private readonly string settingsFilename;
         private settings globalSettings = Activator.CreateInstance<settings>();
 
@@ -54,7 +60,7 @@ namespace combomod
             
             FieldInfo field = typeof(Mod).GetField
                 ("Name", BindingFlags.Instance | BindingFlags.Public);
-            field?.SetValue(this, "Glorious Combos");
+            field?.SetValue(this, globals.MOD_NAME_FULL);
         }
 
 
@@ -62,11 +68,90 @@ namespace combomod
         {
             setupSettings();
             
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += returnToMenuScene;
             ModHooks.Instance.AfterSavegameLoadHook += saveGame;
             ModHooks.Instance.NewGameHook += addComponent;
+
+            ModHooks.Instance.ApplicationQuitHook += cheat_detect.saveResults;
             ModHooks.Instance.ApplicationQuitHook += saveGlobalSettings;
+            
+            GameManager.instance.LoadScene("Menu_Title");
+        }
+
+        private void returnToMenuScene(Scene to, LoadSceneMode loadSceneMode)
+        {
+            if (to.name != "Menu_Title") return;
+            setupScoreCanvas();
+        }
+
+        private void setupScoreCanvas()
+        {
+            menuCanvas = CanvasUtil.CreateCanvas(RenderMode.ScreenSpaceOverlay, new Vector2(1920f, 1080f));
+            menuDrawText = CanvasUtil.CreateTextPanel(menuCanvas,
+                parseScoreResults(), 12,
+                TextAnchor.MiddleLeft, new CanvasUtil.RectData(new Vector2(400f, 150f), 
+                    new Vector2(0.5f, 0.5f), new Vector2(0.98f, 0.05f), new Vector2(0.98f, 0.05f)));
+        }
+
+        private string parseScoreResults()
+        {
+            string s = "#\t\tClear\tBinds\n";
+
+            for (int i = 0; i < globals.ALL_RESULTS.Length; i++)
+            {
+                s += (i + 1) + "\t\t";
+
+                switch (globals.ALL_RESULTS[i].bestClear)
+                {
+                    case globals.bestclear.FiveStar:
+                        s += "★★★★★";
+                        break;
+                    case globals.bestclear.FourStar:
+                        s += "★★★★\t";
+                        break;
+                    case globals.bestclear.ThreeStar:
+                        s += "★★★\t";
+                        break;
+                    case globals.bestclear.FullCombo:
+                        s += "FC!\t";
+                        break;
+                    case globals.bestclear.None:
+                        s += "N/A\t";
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+
+                s += "\t";
+                
+                switch (globals.ALL_RESULTS[i].numBind)
+                {
+                    case globals.numbindings.None:
+                        s += "0";
+                        break;
+                    case globals.numbindings.One:
+                        s += "1";
+                        break;
+                    case globals.numbindings.Two:
+                        s += "2";
+                        break;
+                    case globals.numbindings.Three:
+                        s += "3";
+                        break;
+                    case globals.numbindings.Four:
+                        s += "4!";
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+
+                s += "\n";
+            }
+
+            return s;
         }
         
+
         public void Unload()
         {
             log("Disabling! If you see any more non-settings messages by this mod please report as an issue.");
@@ -106,17 +191,30 @@ namespace combomod
                 globalSettings?.reset();
             }
 
-            Debug.Assert(globalSettings != null, nameof(globalSettings) + " != null");
-            bool noCheating = (cheat_detect.verifyString(globalSettings.soulless1, 0) &&
-                          cheat_detect.verifyString(globalSettings.soulless2, 1) &&
-                          cheat_detect.verifyString(globalSettings.soulless3, 2) &&
-                          cheat_detect.verifyString(globalSettings.soulless4, 3) &&
-                          cheat_detect.verifyString(globalSettings.soulless5, 4));
+            bool noCheating = globalSettings == null || (cheat_detect.verifyString(globalSettings.soulless1, 0) &&
+                                                         cheat_detect.verifyString(globalSettings.soulless2, 1) &&
+                                                         cheat_detect.verifyString(globalSettings.soulless3, 2) &&
+                                                         cheat_detect.verifyString(globalSettings.soulless4, 3) &&
+                                                         cheat_detect.verifyString(globalSettings.soulless5, 4));
             if (!noCheating)
             {
                 log("Detected possible cheating in save file. Resetting save.");
                 globalSettings?.reset();
             }
+
+            string[] soullessComplete = {
+                globalSettings?.soulless1,
+                globalSettings?.soulless2,
+                globalSettings?.soulless3,
+                globalSettings?.soulless4,
+                globalSettings?.soulless5
+            };
+            
+            for (int i = 0; i < globals.ALL_RESULTS.Length; i++)
+            {
+                globals.ALL_RESULTS[i] = cheat_detect.parseValidString(soullessComplete[i], i);
+            }
+            
             
             saveGlobalSettings();
         }
@@ -165,7 +263,7 @@ namespace combomod
 
         public static void log(string text)
         {
-            Logger.Log(text);
+            Logger.Log( "[" + globals.MOD_NAME_FULL + "]" + text);
         }
     }
 }

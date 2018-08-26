@@ -36,7 +36,7 @@
       <HintPath>..\..\mods\Assembly-CSharp.dll</HintPath>
     </Reference>
     <Reference Include="ModCommon, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\..\mods\ModCommonHooks.dll</HintPath>
+      <HintPath>..\..\mods\ModCommon.dll</HintPath>
     </Reference>
     <Reference Include="PlayMaker, Version=1.6.0.0, Culture=neutral, PublicKeyToken=null">
       <HintPath>..\..\mods\PlayMaker.dll</HintPath>
@@ -48,26 +48,35 @@
     <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
       <HintPath>..\..\mods\UnityEngine.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>../../mods/UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.JSONSerializeModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\..\mods\UnityEngine.JSONSerializeModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\..\mods\UnityEngine.TextRenderingModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.UI, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
       <HintPath>..\..\mods\UnityEngine.UI.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\..\mods\UnityEngine.UIModule.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="cheat_detect.cs" />
     <Compile Include="combos.cs" />
-    <Compile Include="combo_meter.cs" />
     <Compile Include="combo_mod.cs" />
     <Compile Include="hero_particles.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="settings.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-
   <PropertyGroup>
     <PostBuildEvent>echo "Copying mod"
       cp "$(TargetPath)" "/home/eli/.local/share/Steam/steamapps/common/Hollow Knight/hollow_knight_Data/Managed/Mods"</PostBuildEvent>
   </PropertyGroup>
-
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
          Other similar extension points exist, see Microsoft.Common.targets.
     <Target Name="BeforeBuild">

@@ -8,6 +8,7 @@ namespace combomod
         public const int SETTINGS_VER = 1;
         public const string MOD_VERSION_STRING = "0.0.1";
         public const string SETTINGS_FILE_APPEND = "combos.settings.json";
+        public const string MOD_NAME_FULL = "Glorious Combos";
         public const int LOAD_PRIORITY = 130;
         
         // For other mods...
@@ -22,6 +23,32 @@ namespace combomod
             "DO NOT MODIFY ANY STRING VALUES. THEY ARE USED TO STORE COMPLETION. YOU MAY LOSE YOUR RECORDS.";
 
         public static settings fileSettings;
+
+        public enum bestclear
+        {
+            None,
+            ThreeStar,
+            FourStar,
+            FiveStar,
+            FullCombo
+        }
+
+        public enum numbindings
+        {
+            None,
+            One,
+            Two,
+            Three,
+            Four
+        }
+
+        public struct gm_challenge_results
+        {
+            public bestclear bestClear;
+            public numbindings numBind;
+        }
+        
+        public static readonly gm_challenge_results[] ALL_RESULTS = new gm_challenge_results[5];
         
         
         public enum gm1_bestclear
@@ -84,10 +111,10 @@ namespace combomod
         public enum gm4_bestclear
         {
             None = 'h',
-            ThreeStar = 'C',
-            FourStar = 'D',
-            FiveStar = 'E',
-            FullCombo = 'F'
+            ThreeStar = 'c',
+            FourStar = 'd',
+            FiveStar = 'e',
+            FullCombo = 'f'
         }
         
         public enum gm4_numbindings
@@ -169,11 +196,11 @@ namespace combomod
         public float damageModifier { get => GetFloat(); private set => SetFloat(value); }
         
         public string doNotModifyAnyStringValues { get => GetString(); private set => SetString(value); }
-        public string soulless1 { get => GetString(); private set => SetString(value); }
-        public string soulless2 { get => GetString(); private set => SetString(value); }
-        public string soulless3 { get => GetString(); private set => SetString(value); }
-        public string soulless4 { get => GetString(); private set => SetString(value); }
-        public string soulless5 { get => GetString(); private set => SetString(value); }
+        public string soulless1 { get => GetString(); set => SetString(value); }
+        public string soulless2 { get => GetString(); set => SetString(value); }
+        public string soulless3 { get => GetString(); set => SetString(value); }
+        public string soulless4 { get => GetString(); set => SetString(value); }
+        public string soulless5 { get => GetString(); set => SetString(value); }
 
     }
 }
