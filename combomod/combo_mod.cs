@@ -18,7 +18,6 @@ namespace combomod
     public class combo_mod : Mod, ITogglableMod
     {
         private GameObject menuCanvas;
-        private GameObject menuDrawText;
         
         private readonly string settingsFilename;
         private settings globalSettings = Activator.CreateInstance<settings>();
@@ -87,7 +86,7 @@ namespace combomod
         private void setupScoreCanvas()
         {
             menuCanvas = CanvasUtil.CreateCanvas(RenderMode.ScreenSpaceOverlay, new Vector2(1920f, 1080f));
-            menuDrawText = CanvasUtil.CreateTextPanel(menuCanvas,
+            CanvasUtil.CreateTextPanel(menuCanvas,
                 parseScoreResults(), 12,
                 TextAnchor.MiddleLeft, new CanvasUtil.RectData(new Vector2(400f, 150f), 
                     new Vector2(0.5f, 0.5f), new Vector2(0.98f, 0.05f), new Vector2(0.98f, 0.05f)));

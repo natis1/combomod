@@ -54,6 +54,9 @@
     <Reference Include="UnityEngine.JSONSerializeModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
       <HintPath>..\..\mods\UnityEngine.JSONSerializeModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\..\mods\UnityEngine.ParticleSystemModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.TextRenderingModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
       <HintPath>..\..\mods\UnityEngine.TextRenderingModule.dll</HintPath>
     </Reference>
@@ -68,7 +71,7 @@
     <Compile Include="cheat_detect.cs" />
     <Compile Include="combos.cs" />
     <Compile Include="combo_mod.cs" />
-    <Compile Include="hero_particles.cs" />
+    <Compile Include="proc_gen.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="settings.cs" />
   </ItemGroup>

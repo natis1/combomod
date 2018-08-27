@@ -21,18 +21,25 @@ namespace combomod
         private int numBindings = 0;
         private int numFails = 0;
         private int godmasterTotalHits = 0;
-        
+
+        private int godmasterBestCombo = 0;
         private int numHits = 0;
         private int currentLevel = 0;
         private double comboMeter = 0.0;
         
         private GameObject voidKnight;
+        private GameObject knightRadiantEffect;
 
         private GameObject canvasObj;
         private GameObject comboBar;
 
         private GameObject blueComboBar;
         private GameObject radiantText;
+        private GameObject hitText;
+
+        private GameObject winLossCanvas;
+        private GameObject winLossText;
+        private GameObject winLossBlanker;
 
         private bool barActive;
         
@@ -40,11 +47,16 @@ namespace combomod
         private Image comboBarPicture;
         private Image blueComboPicture;
         private Text radiantTextBox;
+        private Text totalHitNumber;
+        private ParticleSystem radKnightSystem;
+        private ParticleSystemRenderer radKnightRenderer;
 
         private const double decayRateBase = 0.1;
 
         private const double FOUR_STAR_SUCCESS_RATE = 0.93;
         private const double FIVE_STAR_SUCCESS_RATE = 0.97;
+
+        private static readonly Texture2D PERFECT_WHITE_CIRCLE = proc_gen.generateWhiteCircle();
 
         private static readonly string[] COMBO_STRINGS = new[]
         {
@@ -119,6 +131,9 @@ namespace combomod
                 if (inGodmasterBattle)
                 {
                     godmasterTotalHits++;
+
+                    if (godmasterBestCombo < numHits)
+                        godmasterBestCombo = numHits;
                 }
 
                 updateComboBars();
@@ -131,6 +146,27 @@ namespace combomod
             currentLevel = getPlayerLevel(numHits);
             
             radiantTextBox.text = currentLevel < 10 ? COMBO_STRINGS[currentLevel - 1] : COMBO_STRINGS[4];
+            totalHitNumber.text = numHits + "";
+
+            switch (currentLevel)
+            {
+                case 10:
+                    radKnightRenderer.material.color = Color.white;
+                    break;
+                case 4:
+                    radKnightRenderer.material.color = new Color(1f, 0.8f, 0.2f, 0.8f);
+                    break;
+                case 3:
+                    radKnightRenderer.material.color = new Color(1f, 0.8f, 0.2f, 0.4f);
+                    break;
+                case 2:
+                    radKnightRenderer.material.color = new Color(0.6f, 0f, 0f, 0.3f);
+                    break;
+                default:
+                    radKnightRenderer.material.color = Color.clear;
+                    break;
+            }
+            
         }
 
         private void Update()
@@ -141,7 +177,7 @@ namespace combomod
             if (comboBarPicture != null && comboMeter > 0)
             {
                 comboBarPicture.fillAmount = (float) comboMeter;
-                comboMeter -= (decayRateBase * Time.deltaTime);
+                comboMeter -= (decayRateBase * Time.deltaTime * globals.fileSettings.comboDrainRate);
             } else if (comboBarPicture != null && numHits > 0)
             {
                 comboMeter = 1.0;
@@ -174,6 +210,12 @@ namespace combomod
                     continue;
                 
                 voidKnight = HeroController.instance.spellControl.gameObject;
+                if (knightRadiantEffect != null)
+                {
+                    knightRadiantEffect.transform.parent = voidKnight.transform;
+                    knightRadiantEffect.transform.localPosition = Vector3.zero;
+                }
+                
                 combo_mod.log("Found the knight!");
                 yield break;
             }
@@ -215,8 +257,49 @@ namespace combomod
             radiantText = CanvasUtil.CreateTextPanel(canvasObj, "", 42,
                 TextAnchor.UpperRight, new CanvasUtil.RectData(new Vector2(400f, 150f), 
                     new Vector2(0.5f, 0.5f), new Vector2(0.89f, 0.92f), new Vector2(0.89f, 0.92f)));
-
             radiantTextBox = radiantText.GetComponent<Text>();
+            
+            hitText = CanvasUtil.CreateTextPanel(canvasObj, "", 42,
+                TextAnchor.LowerRight, new CanvasUtil.RectData(new Vector2(400f, 150f), 
+                    new Vector2(0.5f, 0.5f), new Vector2(0.89f, 0.82f), new Vector2(0.89f, 0.82f)));
+            totalHitNumber = hitText.GetComponent<Text>();
+
+            if (knightRadiantEffect == null)
+            {
+                knightRadiantEffect = new GameObject("knightRadiantParticles",
+                    typeof(ParticleSystem), typeof(ParticleSystemRenderer));
+                radKnightSystem = knightRadiantEffect.GetComponent<ParticleSystem>();
+                radKnightRenderer = knightRadiantEffect.GetComponent<ParticleSystemRenderer>();
+                
+                ParticleSystem.MainModule partMain = radKnightSystem.main;
+                partMain.loop = true;
+                radKnightSystem.useAutoRandomSeed = true;
+                partMain.gravityModifier = 0f;
+                //partMain.startColor = new 
+                //    ParticleSystem.MinMaxGradient(new Color(1f, 0f, 0f), new Color(1f, 1f, 0.3f));
+                //partMain.startColor = new 
+                //    ParticleSystem.MinMaxGradient(new Color(1f, 1f, 0.3f));
+                partMain.startSize = new ParticleSystem.MinMaxCurve(0.15f);
+                partMain.startLifetime = new ParticleSystem.MinMaxCurve(0.1f, 0.3f);
+                partMain.maxParticles = 300;
+                partMain.startSpeed = new ParticleSystem.MinMaxCurve(10f, 30f);
+                partMain.startRotation = new ParticleSystem.MinMaxCurve(0, (float) (Math.PI * 2.0));
+            
+                ParticleSystem.EmissionModule partEmission = radKnightSystem.emission;
+                partEmission.enabled = true;
+                partEmission.rateOverTime = new ParticleSystem.MinMaxCurve(50f);
+
+                
+                radKnightRenderer.material.shader = Shader.Find("Sprites/Default");
+                radKnightRenderer.material.mainTexture = PERFECT_WHITE_CIRCLE;
+                
+                if (voidKnight != null)
+                {
+                    knightRadiantEffect.transform.parent = voidKnight.transform;
+                    knightRadiantEffect.transform.localPosition = Vector3.zero;
+                }
+            }
+            
             updateComboBars();
         }
 
@@ -235,8 +318,8 @@ namespace combomod
                 }
             } else if (inGodmasterBattle && to.name == "GG_Atrium")
             {
-                combo_mod.log("Left godmaster scene!");
-                endGodMaster(from.name);
+                combo_mod.log("Left godmaster scene because you died!");
+                endGodMaster(from.name, true);
             }
 
             if (globals.fileSettings.onlyEnableInGodmaster && !inGodmasterBattle) return;
@@ -326,30 +409,58 @@ namespace combomod
                     (double) globals.fileSettings.comboIncrementHits);
         }
 
-        private void endGodMaster(string sceneName)
+        private void endGodMaster(string sceneName, bool died)
         {
-            globals.gm_challenge_results results = new globals.gm_challenge_results();
-            results.numBind = (globals.numbindings) numBindings;
-            
-            
-            double successRate = (godmasterTotalHits - numFails) / (double) godmasterTotalHits;
 
-            if (numFails == 0)
+            if (!died)
             {
-                results.bestClear = globals.bestclear.FullCombo;
-            } else if (successRate >= FIVE_STAR_SUCCESS_RATE)
-            {
-                results.bestClear = globals.bestclear.FiveStar;
-            } else if (successRate >= FOUR_STAR_SUCCESS_RATE)
-            {
-                results.bestClear = globals.bestclear.FourStar;
+                combo_mod.log("Congrats on winning!");
+                
+                globals.gm_challenge_results results = new globals.gm_challenge_results();
+                results.numBind = (globals.numbindings) numBindings;
+                double successRate = (godmasterTotalHits - numFails) / (double) godmasterTotalHits;
+
+                if (numFails == 0)
+                {
+                    results.bestClear = globals.bestclear.FullCombo;
+                }
+                else if (successRate >= FIVE_STAR_SUCCESS_RATE)
+                {
+                    results.bestClear = globals.bestclear.FiveStar;
+                }
+                else if (successRate >= FOUR_STAR_SUCCESS_RATE)
+                {
+                    results.bestClear = globals.bestclear.FourStar;
+                }
+                else
+                {
+                    results.bestClear = globals.bestclear.ThreeStar;
+                }
+
+                if (results.numBind > globals.ALL_RESULTS[godmasterLevel].numBind)
+                {
+                    combo_mod.log("Found better score, saving!");
+                    globals.ALL_RESULTS[godmasterLevel] = results;
+                    cheat_detect.saveResults();
+                } else if (results.numBind == globals.ALL_RESULTS[godmasterLevel].numBind && results.bestClear > globals.ALL_RESULTS[godmasterLevel].bestClear)
+                {
+                    combo_mod.log("Found better score, saving!");
+                    globals.ALL_RESULTS[godmasterLevel] = results;
+                    cheat_detect.saveResults();
+                }
+                else
+                {
+                    combo_mod.log("Found worse score than before, not saving.");
+                }
+                
+                StartCoroutine(showWinScreen());
             }
             else
             {
-                results.bestClear = globals.bestclear.ThreeStar;
+                combo_mod.log("Sorry for your loss. :(");
+                StartCoroutine(showFailureScreen());
             }
-            
-            
+
             inGodmasterBattle = false;
             numHits = 0;
             currentLevel = 0;
@@ -361,6 +472,95 @@ namespace combomod
             
             cheat_detect.saveResults();
         }
+
+        private IEnumerator showWinScreen()
+        {
+            yield return new WaitForFinishedEnteringScene();
+            yield return new WaitForSeconds(0.4f);
+
+            winLossCanvas = CanvasUtil.CreateCanvas(RenderMode.ScreenSpaceOverlay, new Vector2(1920f, 1080f));
+            
+            winLossText = CanvasUtil.CreateTextPanel(winLossCanvas, "", 42,
+                TextAnchor.MiddleCenter, new CanvasUtil.RectData(new Vector2(400f, 150f), 
+                    new Vector2(0.5f, 0.5f), new Vector2(0.7f, 0.2f), new Vector2(0.7f, 0.2f)));
+            Text t = winLossText.GetComponent<Text>();
+
+            t.text = "Awesome!\n";
+            switch (globals.ALL_RESULTS[godmasterLevel].bestClear)
+            {
+                case globals.bestclear.FiveStar:
+                    t.text += "★★★★★";
+                    break;
+                case globals.bestclear.None:
+                    t.text += "invalid";
+                    break;
+                case globals.bestclear.ThreeStar:
+                    t.text += "★★★";
+                    break;
+                case globals.bestclear.FourStar:
+                    t.text += "★★★★";
+                    break;
+                case globals.bestclear.FullCombo:
+                    t.text += "★★★★★ FC";
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+
+            t.text += "\nBindings: " + globals.ALL_RESULTS[godmasterLevel].numBind +
+                      "\nCombo: " + godmasterBestCombo + "\nTotal hits: " + godmasterTotalHits;
+            
+            
+            yield return new WaitForSeconds(4.5f);
+
+            Destroy(winLossText);
+            Destroy(winLossCanvas);
+
+        }
+        
+
+        private IEnumerator showFailureScreen()
+        {
+            yield return new WaitForFinishedEnteringScene();
+            yield return new WaitForSeconds(0.4f);
+            
+            winLossCanvas = CanvasUtil.CreateCanvas(RenderMode.ScreenSpaceOverlay, new Vector2(1920f, 1080f));
+            winLossBlanker = CanvasUtil.CreateImagePanel(winLossCanvas,
+                Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f)),
+                new CanvasUtil.RectData(new Vector2(4000f, 2000f), new Vector2(0.5f, 0.5f),
+                    new Vector2(0f, 0f), new Vector2(1f, 1)));
+
+            Image img = winLossBlanker.GetComponent<Image>();
+            
+            winLossText = CanvasUtil.CreateTextPanel(winLossCanvas, "", 42,
+                TextAnchor.MiddleCenter, new CanvasUtil.RectData(new Vector2(400f, 150f), 
+                    new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.2f), new Vector2(0.5f, 0.2f)));
+            Text t = winLossText.GetComponent<Text>();
+
+            t.text = "Failed!\nBest combo: " + godmasterBestCombo + "\nTotal hits: " + godmasterTotalHits;
+            Color c = img.color;
+            c.g = 0f;
+            c.b = 0f;
+            c.r = 0f;
+            c.a = 1f;
+            img.color = c;
+            yield return new WaitForSeconds(1.5f);
+            const float fadeTime = 4f;
+
+            
+            
+            for (float time = 0f; time < fadeTime; time += Time.deltaTime)
+            {
+                c.a = ((fadeTime - time) / fadeTime);
+                img.color = c;
+                yield return null;
+            }
+            
+            Destroy(winLossBlanker);
+            Destroy(winLossText);
+            Destroy(winLossCanvas);
+        }
+        
 
         private void setupGodMaster(string sceneName)
         {
