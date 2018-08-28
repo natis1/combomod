@@ -1,11 +1,21 @@
 using System;
+using System.IO;
 using UnityEngine;
 
 namespace combomod
 {
     public static class proc_gen
     {
-        
+        public static void saveTextureToFile(Texture2D tex, string fileName)
+        {
+            byte[] buffer = tex.EncodeToPNG();
+            Directory.CreateDirectory(Path.GetDirectoryName(fileName) ?? throw new NullReferenceException());
+            FileStream output = new FileStream(fileName, FileMode.Create, FileAccess.ReadWrite);
+            BinaryWriter binaryWriter = new BinaryWriter(output);
+            binaryWriter.Write(buffer);
+            binaryWriter.Close();
+        }
+
         
         public static Texture2D generateWhiteCircle()
         {
@@ -20,11 +30,11 @@ namespace combomod
                         circle.SetPixel(x, y, Color.white);
                     } else if (dist < 50.0)
                     {
-                        circle.SetPixel(x, y, new Color(1.0f, 1.0f, 1.0f, (float)((50.0 - dist) / 1.5)));
+                        circle.SetPixel(x, y, new Color(1.0f, 1.0f, 1.0f, (float)((50.0 - dist) / 15.0)));
                     }
                     else
                     {
-                        circle.SetPixel(x, y, Color.clear);
+                        circle.SetPixel(x, y, new Color(1.0f, 1.0f, 1.0f, 0f));
                     }
                 }
             }

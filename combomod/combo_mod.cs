@@ -73,7 +73,6 @@ namespace combomod
 
             ModHooks.Instance.ApplicationQuitHook += cheat_detect.saveResults;
             ModHooks.Instance.ApplicationQuitHook += saveGlobalSettings;
-            
             GameManager.instance.LoadScene("Menu_Title");
         }
 
@@ -112,10 +111,10 @@ namespace combomod
                         s += "★★★\t";
                         break;
                     case globals.bestclear.FullCombo:
-                        s += "FC!\t";
+                        s += "FC!\t\t";
                         break;
                     case globals.bestclear.None:
-                        s += "N/A\t";
+                        s += "N/A\t\t";
                         break;
                     default:
                         throw new ArgumentOutOfRangeException();

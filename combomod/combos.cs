@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Mime;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Runtime.Remoting.Metadata.W3cXsd2001;
+using GlobalEnums;
+using HutongGames.PlayMaker;
 using ModCommon;
 using Modding;
 using UnityEngine;
@@ -41,6 +44,8 @@ namespace combomod
         private GameObject winLossText;
         private GameObject winLossBlanker;
 
+        private List<GameObject> sceneEnemies;
+
         private bool barActive;
         
         
@@ -56,7 +61,30 @@ namespace combomod
         private const double FOUR_STAR_SUCCESS_RATE = 0.93;
         private const double FIVE_STAR_SUCCESS_RATE = 0.97;
 
-        private static readonly Texture2D PERFECT_WHITE_CIRCLE = proc_gen.generateWhiteCircle();
+        private readonly Texture2D perfectWhiteCircle;
+
+        private combos()
+        {
+            perfectWhiteCircle = proc_gen.generateWhiteCircle();
+            perfectWhiteCircle.Apply();
+        }
+
+        public void pauseCombos()
+        {
+            barActive = false;
+        }
+
+        public void pauseCombosForTime(FsmFloat timeToPause)
+        {
+            StartCoroutine(pauseCombosInternal(timeToPause.Value));
+        }
+
+        private IEnumerator pauseCombosInternal(float time)
+        {
+            barActive = false;
+            yield return new WaitForSeconds(time);
+            barActive = true;
+        }
 
         private static readonly string[] COMBO_STRINGS = new[]
         {
@@ -78,22 +106,37 @@ namespace combomod
         private void Start()
         {
             combo_mod.log("Starting combo thingy");
+            
             StartCoroutine(getVoidKnight());
             UnityEngine.SceneManagement.SceneManager.activeSceneChanged += switchScenes;
 
             On.HealthManager.TakeDamage += hitEnemy;
             GameManager.instance.OnFinishedEnteringScene += restartMeter;
-
             if (globals.fileSettings.comboAffectsPlayerDamage)
             {
                 ModHooks.Instance.TakeDamageHook += dmgResetCombo;
             }
         }
 
-        private int dmgResetCombo(ref int hazardtype, int damage)
+        private static bool canTakeDamage(int hazardType)
         {
-            if (damage <= 0) return damage;
-            
+            return (HeroController.instance.damageMode != DamageMode.NO_DAMAGE &&
+                    HeroController.instance.transitionState == HeroTransitionState.WAITING_TO_TRANSITION &&
+                    (!HeroController.instance.cState.invulnerable && !HeroController.instance.cState.recoiling) &&
+                    (!HeroController.instance.playerData.isInvincible && !HeroController.instance.cState.dead &&
+                     (!HeroController.instance.cState.hazardDeath && !BossSceneController.IsTransitioning)) &&
+                    (HeroController.instance.damageMode != DamageMode.HAZARD_ONLY || hazardType != 1) &&
+                    (!HeroController.instance.cState.shadowDashing || hazardType != 1) &&
+                    ((double) HeroController.instance.parryInvulnTimer <= 0.0 || hazardType != 1) &&
+                    (!HeroController.instance.playerData.equippedCharm_5 ||
+                     HeroController.instance.playerData.blockerHits <= 0 ||
+                     (hazardType != 1 || !HeroController.instance.cState.focusing)));
+        }
+
+        private int dmgResetCombo(ref int hazardType, int damage)
+        {
+            if (!canTakeDamage(hazardType) || damage <= 0) return damage;
+             
             numHits = 0;
             comboMeter = 0.0;
             if (inGodmasterBattle)
@@ -106,11 +149,14 @@ namespace combomod
 
         private void restartMeter()
         {
-            barActive = true;
+            if (!inGodmasterBattle)
+                barActive = true;
         }
 
         private void hitEnemy(On.HealthManager.orig_TakeDamage orig, HealthManager self, HitInstance hitinstance)
         {
+            barActive = true;
+            
             if (globals.fileSettings.comboAffectsPlayerDamage)
             {
                 hitinstance.DamageDealt =
@@ -123,9 +169,20 @@ namespace combomod
             }
             
             orig(self, hitinstance);
+
+            bool hasObject = sceneEnemies.Contains(self.gameObject);
+            if ( (self.isDead || self.hp <= 0) && hasObject)
+            {
+                sceneEnemies.Remove(self.gameObject);
+            } else if (!hasObject && (!self.isDead && self.hp > 0))
+            {
+                sceneEnemies.Add(self.gameObject);
+            }
+            
             if (comboBarPicture != null)
             {
                 comboMeter = 1.0;
+                comboBarPicture.fillAmount = (float) comboMeter;
                 numHits++;
 
                 if (inGodmasterBattle)
@@ -146,7 +203,15 @@ namespace combomod
             currentLevel = getPlayerLevel(numHits);
             
             radiantTextBox.text = currentLevel < 10 ? COMBO_STRINGS[currentLevel - 1] : COMBO_STRINGS[4];
-            totalHitNumber.text = numHits + "";
+
+            if (numHits > 0)
+            {
+                totalHitNumber.text = numHits + "";
+            }
+            else
+            {
+                totalHitNumber.text = "";
+            }
 
             switch (currentLevel)
             {
@@ -160,7 +225,7 @@ namespace combomod
                     radKnightRenderer.material.color = new Color(1f, 0.8f, 0.2f, 0.4f);
                     break;
                 case 2:
-                    radKnightRenderer.material.color = new Color(0.6f, 0f, 0f, 0.3f);
+                    radKnightRenderer.material.color = new Color(0.9f, 0f, 0f, 0.3f);
                     break;
                 default:
                     radKnightRenderer.material.color = Color.clear;
@@ -171,7 +236,7 @@ namespace combomod
 
         private void Update()
         {
-            if (!barActive)
+            if (!barActive || sceneEnemies.Count == 0)
                 return;
             
             if (comboBarPicture != null && comboMeter > 0)
@@ -181,15 +246,26 @@ namespace combomod
             } else if (comboBarPicture != null && numHits > 0)
             {
                 comboMeter = 1.0;
-                comboBarPicture.fillAmount = (float) comboMeter;
                 if (inGodmasterBattle)
                 {
                     numFails++;
                 }
 
-                numHits = ((getPlayerLevel(currentLevel) - 1) * globals.fileSettings.comboIncrementHits);
+                if (getPlayerLevel(numHits) != 10)
+                {
+                    numHits = ((getPlayerLevel(numHits) - 2) * globals.fileSettings.comboIncrementHits);
+                }
+                else
+                {
+                    numHits = 3 * globals.fileSettings.comboIncrementHits;
+                }
+
                 if (numHits < 0)
+                {
                     numHits = 0;
+                    comboMeter = 0.0;
+                }
+                comboBarPicture.fillAmount = (float) comboMeter;
                 updateComboBars();
             } else if (comboBarPicture != null)
             {
@@ -217,10 +293,11 @@ namespace combomod
                 }
                 
                 combo_mod.log("Found the knight!");
+                proc_gen.saveTextureToFile(perfectWhiteCircle, "/tmp/whiteCircle.png");
                 yield break;
             }
         }
-
+        
         private IEnumerator loadComboBars()
         {
             yield return new WaitForFinishedEnteringScene();
@@ -236,7 +313,7 @@ namespace combomod
             
             blueComboBar = CanvasUtil.CreateImagePanel(canvasObj,
                 Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f)),
-                new CanvasUtil.RectData(new Vector2(300f, 20f), new Vector2(0.5f, 0.5f),
+                new CanvasUtil.RectData(new Vector2(301f, 20f), new Vector2(0.5f, 0.5f),
                     new Vector2(0.9f, 0.85f), new Vector2(0.9f, 0.85f)) );
 
             comboBarPicture = comboBar.GetComponent<Image>();
@@ -279,19 +356,28 @@ namespace combomod
                 //    ParticleSystem.MinMaxGradient(new Color(1f, 0f, 0f), new Color(1f, 1f, 0.3f));
                 //partMain.startColor = new 
                 //    ParticleSystem.MinMaxGradient(new Color(1f, 1f, 0.3f));
-                partMain.startSize = new ParticleSystem.MinMaxCurve(0.15f);
-                partMain.startLifetime = new ParticleSystem.MinMaxCurve(0.1f, 0.3f);
+                partMain.startSize = new ParticleSystem.MinMaxCurve(0.25f);
+                partMain.startLifetime = new ParticleSystem.MinMaxCurve(0.3f);
                 partMain.maxParticles = 300;
-                partMain.startSpeed = new ParticleSystem.MinMaxCurve(10f, 30f);
-                partMain.startRotation = new ParticleSystem.MinMaxCurve(0, (float) (Math.PI * 2.0));
+                partMain.startSpeed = new ParticleSystem.MinMaxCurve(3f, 15f);
+                //partMain.startRotation = new ParticleSystem.MinMaxCurve(0, (float) (Math.PI * 2.0));
             
                 ParticleSystem.EmissionModule partEmission = radKnightSystem.emission;
                 partEmission.enabled = true;
                 partEmission.rateOverTime = new ParticleSystem.MinMaxCurve(50f);
 
+                ParticleSystem.SizeOverLifetimeModule soe = radKnightSystem.sizeOverLifetime;
+                AnimationCurve curve = new AnimationCurve();
+                curve.AddKey(0.0f, 1f);
+                curve.AddKey(1f, 0f);
+                soe.size = new ParticleSystem.MinMaxCurve(1f, curve);
+
+                soe.enabled = true;
                 
-                radKnightRenderer.material.shader = Shader.Find("Sprites/Default");
-                radKnightRenderer.material.mainTexture = PERFECT_WHITE_CIRCLE;
+                radKnightRenderer.material.shader = Shader.Find("Particles/Additive");
+                radKnightRenderer.material.mainTexture = perfectWhiteCircle;
+                radKnightRenderer.renderMode = ParticleSystemRenderMode.Billboard;
+                
                 
                 if (voidKnight != null)
                 {
@@ -303,8 +389,25 @@ namespace combomod
             updateComboBars();
         }
 
+        private IEnumerator dumpSceneAfterTime(Scene sceneToDump, float time = 0.2f)
+        {
+            yield return new WaitForSeconds(time);
+            sceneToDump.PrintHierarchy(-1, null, null, "gng/" + sceneToDump.name);
+        }
+
         private void switchScenes(Scene from, Scene to)
         {
+            sceneEnemies = new List<GameObject>();
+            StartCoroutine(dumpSceneAfterTime(to));
+            
+            foreach (GameObject go in to.GetRootGameObjects())
+            {
+                foreach (HealthManager enemy in go.GetComponentsInChildren<HealthManager>())
+                {
+                    sceneEnemies.Add(enemy.gameObject);
+                }
+            }
+            
             barActive = false;
             combo_mod.log("from: " + from.name + " to: " + to.name);
             
@@ -320,6 +423,10 @@ namespace combomod
             {
                 combo_mod.log("Left godmaster scene because you died!");
                 endGodMaster(from.name, true);
+            } else if (inGodmasterBattle && to.name == "GG_End_Sequence")
+            {
+                combo_mod.log("Left godmaster scene because you won!!!");
+                endGodMaster(from.name, false);
             }
 
             if (globals.fileSettings.onlyEnableInGodmaster && !inGodmasterBattle) return;
@@ -510,12 +617,6 @@ namespace combomod
             t.text += "\nBindings: " + globals.ALL_RESULTS[godmasterLevel].numBind +
                       "\nCombo: " + godmasterBestCombo + "\nTotal hits: " + godmasterTotalHits;
             
-            
-            yield return new WaitForSeconds(4.5f);
-
-            Destroy(winLossText);
-            Destroy(winLossCanvas);
-
         }
         
 

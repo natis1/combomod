@@ -1,12 +1,15 @@
 ﻿using System;
+using HutongGames.PlayMaker;
+using HutongGames.PlayMaker.Actions;
 using Modding;
+using UnityEngine;
 
 namespace combomod
 {
     public static class globals
     {
         public const int SETTINGS_VER = 1;
-        public const string MOD_VERSION_STRING = "0.0.1";
+        public const string MOD_VERSION_STRING = "0.0.5";
         public const string SETTINGS_FILE_APPEND = "combos.settings.json";
         public const string MOD_NAME_FULL = "Glorious Combos";
         public const int LOAD_PRIORITY = 130;
@@ -145,7 +148,6 @@ namespace combomod
             Three = 'b',
             Four = 'c'
         }
-        
     }
     
     public class settings : IModSettings
