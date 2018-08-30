@@ -9,18 +9,13 @@ namespace combomod
     public static class globals
     {
         public const int SETTINGS_VER = 1;
-        public const string MOD_VERSION_STRING = "0.0.5";
+        public const string MOD_VERSION_STRING = "0.1";
         public const string SETTINGS_FILE_APPEND = "combos.settings.json";
         public const string MOD_NAME_FULL = "Glorious Combos";
         public const int LOAD_PRIORITY = 130;
         
         // For other mods...
         public static readonly int MOD_VERSION_INT = 5;
-
-        public static readonly string[] GM_BOSS_LEVELS = new[]
-        {
-            "meme1"
-        };
 
         public const string DO_NOT_MODIFY =
             "DO NOT MODIFY ANY STRING VALUES. THEY ARE USED TO STORE COMPLETION. YOU MAY LOSE YOUR RECORDS.";
@@ -66,7 +61,6 @@ namespace combomod
         public enum gm1_numbindings
         {
             None = 'h',
-            Zero = 'n',
             One = 'o',
             Two = 'p',
             Three = 'q',
@@ -85,7 +79,6 @@ namespace combomod
         public enum gm2_numbindings
         {
             None = 'h',
-            Zero = 'c',
             One = 'd',
             Two = 'e',
             Three = 'f',
@@ -104,7 +97,6 @@ namespace combomod
         public enum gm3_numbindings
         {
             None = 'h',
-            Zero = 'j',
             One = 'k',
             Two = 'l',
             Three = 'm',
@@ -123,7 +115,6 @@ namespace combomod
         public enum gm4_numbindings
         {
             None = 'h',
-            Zero = 'k',
             One = 'l',
             Two = 'm',
             Three = 'n',
@@ -142,7 +133,6 @@ namespace combomod
         public enum gm5_numbindings
         {
             None = 'h',
-            Zero = 'y',
             One = 'z',
             Two = 'a',
             Three = 'b',

@@ -77,7 +77,7 @@ namespace combomod
         }
 
         private void returnToMenuScene(Scene to, LoadSceneMode loadSceneMode)
-        {
+        {            
             if (to.name != "Menu_Title") return;
             setupScoreCanvas();
         }
@@ -93,7 +93,7 @@ namespace combomod
 
         private string parseScoreResults()
         {
-            string s = "#\t\tClear\tBinds\n";
+            string s = "#\t\tClear\t\tBinds\n";
 
             for (int i = 0; i < globals.ALL_RESULTS.Length; i++)
             {
@@ -105,7 +105,7 @@ namespace combomod
                         s += "★★★★★";
                         break;
                     case globals.bestclear.FourStar:
-                        s += "★★★★\t";
+                        s += "★★★★";
                         break;
                     case globals.bestclear.ThreeStar:
                         s += "★★★\t";
@@ -168,6 +168,7 @@ namespace combomod
             log("Adding combos to game!");
             globals.fileSettings = globalSettings;
             GameManager.instance.gameObject.GetOrAddComponent<combos>();
+            GameManager.instance.gameObject.GetOrAddComponent<dump_scene>();
         }
         
         

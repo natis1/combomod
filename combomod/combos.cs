@@ -29,6 +29,10 @@ namespace combomod
         private int numHits = 0;
         private int currentLevel = 0;
         private double comboMeter = 0.0;
+
+        private float godmasterSceneSpeedMult = 1.0f;
+
+        private auto_pause autoPauseModule = new auto_pause();
         
         private GameObject voidKnight;
         private GameObject knightRadiantEffect;
@@ -47,8 +51,7 @@ namespace combomod
         private List<GameObject> sceneEnemies;
 
         private bool barActive;
-        
-        
+
         private Image comboBarPicture;
         private Image blueComboPicture;
         private Text radiantTextBox;
@@ -56,10 +59,10 @@ namespace combomod
         private ParticleSystem radKnightSystem;
         private ParticleSystemRenderer radKnightRenderer;
 
-        private const double decayRateBase = 0.1;
+        private const double decayRateBase = 0.15;
 
-        private const double FOUR_STAR_SUCCESS_RATE = 0.93;
-        private const double FIVE_STAR_SUCCESS_RATE = 0.97;
+        private const double FOUR_STAR_SUCCESS_RATE = 0.88;
+        private const double FIVE_STAR_SUCCESS_RATE = 0.95;
 
         private readonly Texture2D perfectWhiteCircle;
 
@@ -71,12 +74,19 @@ namespace combomod
 
         public void pauseCombos()
         {
+            combo_mod.log("Paused combos because FSM said to");
             barActive = false;
         }
 
-        public void pauseCombosForTime(FsmFloat timeToPause)
+        public void pauseCombosUntilNextScene()
         {
-            StartCoroutine(pauseCombosInternal(timeToPause.Value));
+            godmasterSceneSpeedMult = 0f;
+        }
+        
+        public void pauseCombosForTime(FsmVar timeToPause)
+        {
+            combo_mod.log("Paused combos for time because FSM said to. Time is " + timeToPause.floatValue);
+            StartCoroutine(pauseCombosInternal(timeToPause.floatValue));
         }
 
         private IEnumerator pauseCombosInternal(float time)
@@ -98,9 +108,17 @@ namespace combomod
         private void OnDestroy()
         {
             UnityEngine.SceneManagement.SceneManager.activeSceneChanged -= switchScenes;
-            On.HealthManager.TakeDamage -= hitEnemy;
             GameManager.instance.OnFinishedEnteringScene -= restartMeter;
             ModHooks.Instance.TakeDamageHook -= dmgResetCombo;
+
+            try
+            {
+                On.HealthManager.TakeDamage -= hitEnemy;
+            }
+            catch (KeyNotFoundException k)
+            {
+                
+            }
         }
 
         private void Start()
@@ -137,10 +155,27 @@ namespace combomod
         {
             if (!canTakeDamage(hazardType) || damage <= 0) return damage;
              
-            numHits = 0;
-            comboMeter = 0.0;
             if (inGodmasterBattle)
+            {
                 numFails++;
+            }
+
+            if (getPlayerLevel(numHits) != 10)
+            {
+                numHits = ((getPlayerLevel(numHits) - 2) * globals.fileSettings.comboIncrementHits);
+            }
+            else
+            {
+                numHits = 3 * globals.fileSettings.comboIncrementHits;
+            }
+
+            if (numHits <= 0)
+            {
+                numHits = 0;
+                comboMeter = 0.0;
+            }
+            comboBarPicture.fillAmount = (float) comboMeter;
+
                 
             updateComboBars();
 
@@ -170,6 +205,16 @@ namespace combomod
             
             orig(self, hitinstance);
 
+            if (autoPauseModule.godmasterTrackedHms.Contains(self) && (self.isDead || self.hp <= 0))
+            {
+                autoPauseModule.godmasterTrackedHms.Remove(self);
+
+                if (autoPauseModule.godmasterTrackedHms.Count == 0)
+                {
+                    barActive = false;
+                }
+            }
+            
             bool hasObject = sceneEnemies.Contains(self.gameObject);
             if ( (self.isDead || self.hp <= 0) && hasObject)
             {
@@ -213,25 +258,25 @@ namespace combomod
                 totalHitNumber.text = "";
             }
 
+            ParticleSystem.MainModule partMain = radKnightSystem.main;
             switch (currentLevel)
             {
                 case 10:
-                    radKnightRenderer.material.color = Color.white;
+                    partMain.startColor = Color.white;
                     break;
                 case 4:
-                    radKnightRenderer.material.color = new Color(1f, 0.8f, 0.2f, 0.8f);
+                    partMain.startColor = new Color(1f, 0.8f, 0.2f, 0.8f);
                     break;
                 case 3:
-                    radKnightRenderer.material.color = new Color(1f, 0.8f, 0.2f, 0.4f);
+                    partMain.startColor = new Color(1f, 0.8f, 0.2f, 0.4f);
                     break;
                 case 2:
-                    radKnightRenderer.material.color = new Color(0.9f, 0f, 0f, 0.3f);
+                    partMain.startColor = new Color(0.9f, 0f, 0f, 0.3f);
                     break;
                 default:
-                    radKnightRenderer.material.color = Color.clear;
+                    partMain.startColor = new Color(0f, 0f, 0f, 0f);
                     break;
-            }
-            
+            }            
         }
 
         private void Update()
@@ -242,7 +287,7 @@ namespace combomod
             if (comboBarPicture != null && comboMeter > 0)
             {
                 comboBarPicture.fillAmount = (float) comboMeter;
-                comboMeter -= (decayRateBase * Time.deltaTime * globals.fileSettings.comboDrainRate);
+                comboMeter -= (decayRateBase * Time.deltaTime * globals.fileSettings.comboDrainRate * godmasterSceneSpeedMult);
             } else if (comboBarPicture != null && numHits > 0)
             {
                 comboMeter = 1.0;
@@ -260,7 +305,7 @@ namespace combomod
                     numHits = 3 * globals.fileSettings.comboIncrementHits;
                 }
 
-                if (numHits < 0)
+                if (numHits <= 0)
                 {
                     numHits = 0;
                     comboMeter = 0.0;
@@ -293,7 +338,6 @@ namespace combomod
                 }
                 
                 combo_mod.log("Found the knight!");
-                proc_gen.saveTextureToFile(perfectWhiteCircle, "/tmp/whiteCircle.png");
                 yield break;
             }
         }
@@ -309,12 +353,12 @@ namespace combomod
             comboBar = CanvasUtil.CreateImagePanel(canvasObj,
                 Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f)),
                 new CanvasUtil.RectData(new Vector2(300f, 100f), new Vector2(0.9f, 0.9f),
-                    new Vector2(0.9f, 0.89f), new Vector2(0.9f, 0.89f)));
+                    new Vector2(0.917f, 0.89f), new Vector2(0.917f, 0.89f)));
             
             blueComboBar = CanvasUtil.CreateImagePanel(canvasObj,
                 Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f)),
                 new CanvasUtil.RectData(new Vector2(301f, 20f), new Vector2(0.5f, 0.5f),
-                    new Vector2(0.9f, 0.85f), new Vector2(0.9f, 0.85f)) );
+                    new Vector2(0.917f, 0.85f), new Vector2(0.917f, 0.85f)) );
 
             comboBarPicture = comboBar.GetComponent<Image>();
 
@@ -338,13 +382,13 @@ namespace combomod
             
             hitText = CanvasUtil.CreateTextPanel(canvasObj, "", 42,
                 TextAnchor.LowerRight, new CanvasUtil.RectData(new Vector2(400f, 150f), 
-                    new Vector2(0.5f, 0.5f), new Vector2(0.89f, 0.82f), new Vector2(0.89f, 0.82f)));
+                    new Vector2(0.5f, 0.5f), new Vector2(0.89f, 0.854f), new Vector2(0.89f, 0.854f)));
             totalHitNumber = hitText.GetComponent<Text>();
 
             if (knightRadiantEffect == null)
             {
                 knightRadiantEffect = new GameObject("knightRadiantParticles",
-                    typeof(ParticleSystem), typeof(ParticleSystemRenderer));
+                    typeof(ParticleSystem));
                 radKnightSystem = knightRadiantEffect.GetComponent<ParticleSystem>();
                 radKnightRenderer = knightRadiantEffect.GetComponent<ParticleSystemRenderer>();
                 
@@ -360,7 +404,7 @@ namespace combomod
                 partMain.startLifetime = new ParticleSystem.MinMaxCurve(0.3f);
                 partMain.maxParticles = 300;
                 partMain.startSpeed = new ParticleSystem.MinMaxCurve(3f, 15f);
-                //partMain.startRotation = new ParticleSystem.MinMaxCurve(0, (float) (Math.PI * 2.0));
+                
             
                 ParticleSystem.EmissionModule partEmission = radKnightSystem.emission;
                 partEmission.enabled = true;
@@ -385,20 +429,16 @@ namespace combomod
                     knightRadiantEffect.transform.localPosition = Vector3.zero;
                 }
             }
+            //canvasObj.SetActive(true);
+            //comboBar.SetActive(true);
+            //blueComboBar.SetActive(true);
             
             updateComboBars();
-        }
-
-        private IEnumerator dumpSceneAfterTime(Scene sceneToDump, float time = 0.2f)
-        {
-            yield return new WaitForSeconds(time);
-            sceneToDump.PrintHierarchy(-1, null, null, "gng/" + sceneToDump.name);
         }
 
         private void switchScenes(Scene from, Scene to)
         {
             sceneEnemies = new List<GameObject>();
-            StartCoroutine(dumpSceneAfterTime(to));
             
             foreach (GameObject go in to.GetRootGameObjects())
             {
@@ -409,7 +449,6 @@ namespace combomod
             }
             
             barActive = false;
-            combo_mod.log("from: " + from.name + " to: " + to.name);
             
             if (from.name == "GG_Boss_Door_Entrance")
             {
@@ -423,67 +462,33 @@ namespace combomod
             {
                 combo_mod.log("Left godmaster scene because you died!");
                 endGodMaster(from.name, true);
-            } else if (inGodmasterBattle && to.name == "GG_End_Sequence")
+            } else if (inGodmasterBattle && (to.name == "GG_End_Sequence" || to.name == "End_Credits"))
             {
                 combo_mod.log("Left godmaster scene because you won!!!");
                 endGodMaster(from.name, false);
             }
+            StartCoroutine(gmDelayedBossAdd(to.name));
+            godmasterSceneSpeedMult = autoPauseModule.getCurrentComboSpeed(to.name);
 
             if (globals.fileSettings.onlyEnableInGodmaster && !inGodmasterBattle) return;
 
-            StartCoroutine(loadComboBars());
-            
-            //new GameObject("comboBarDisplay", typeof(MeshFilter), typeof(MeshRenderer));
-
-            /*
-            MeshFilter mf = comboBar.GetComponent<MeshFilter>();
-            MeshRenderer mr = comboBar.GetComponent<MeshRenderer>();
-
-            mf.mesh = new Mesh
+            if (!to.name.Contains("Cinematic"))
             {
-                name = "comboBarMesh",
-                vertices = new[]
-                {
-                    new Vector3(-0.5f, -0.5f, 0.015f),
-                    new Vector3(0.5f, -0.5f, 0.015f),
-                    new Vector3(0.5f, 0.5f, 0.015f),
-                    new Vector3(-0.5f, 0.5f, 0.015f)
-                },
-                uv = new[]
-                {
-                    new Vector2(0, 0),
-                    new Vector2(1, 0),
-                    new Vector2(1, 1),
-                    new Vector2(0, 1)
-                },
-                triangles = new[]
-                {
-                    2, 1, 0,
-                    3, 2, 0
-                }
-            };
+                StartCoroutine(loadComboBars());
+            }
 
-            mf.mesh.RecalculateNormals();
-            
-            mr.material.shader = Shader.Find("Particles/Additive");
-            mr.material.mainTexture = Texture2D.whiteTexture;
-            mr.material.color = Color.white;
-
-            comboBar.transform.parent = canvasObj.transform;
-            comboBar.transform.localPosition = Vector3.zero;
-
-            Text memeTestingText = comboBar.GetOrAddComponent<Text>();
-            memeTestingText.fontSize = 100;
-            memeTestingText.text = "meme testing";
-            
-            RectTransform rt = comboBar.GetOrAddComponent<RectTransform>();
-            rt.localPosition = Vector3.zero;
-            rt.sizeDelta = new Vector2(400, 100);
-            */
-            canvasObj.SetActive(true);
-            comboBar.SetActive(true);
             
             combo_mod.log("Created combo bar successfully!");
+        }
+
+        private IEnumerator gmDelayedBossAdd(string toName)
+        {
+            yield return null;
+            yield return null;
+            yield return null;
+            yield return null;
+            autoPauseModule.addCallMethodToEnemiesInScene(toName);
+            autoPauseModule.generateDeathPausesForScene(toName);
         }
 
         private static int getPlayerLevel(int currentCombo)
@@ -569,8 +574,10 @@ namespace combomod
             }
 
             inGodmasterBattle = false;
+            godmasterSceneSpeedMult = 1.0f;
             numHits = 0;
-            currentLevel = 0;
+            currentLevel = 1;
+            godmasterLevel = 0;
             comboMeter = 0.0;
             updateComboBars();
             
@@ -592,23 +599,23 @@ namespace combomod
                     new Vector2(0.5f, 0.5f), new Vector2(0.7f, 0.2f), new Vector2(0.7f, 0.2f)));
             Text t = winLossText.GetComponent<Text>();
 
-            t.text = "Awesome!\n";
+            t.text = "";
             switch (globals.ALL_RESULTS[godmasterLevel].bestClear)
             {
                 case globals.bestclear.FiveStar:
-                    t.text += "★★★★★";
+                    t.text += "Outstanding!\n★★★★★";
                     break;
                 case globals.bestclear.None:
                     t.text += "invalid";
                     break;
                 case globals.bestclear.ThreeStar:
-                    t.text += "★★★";
+                    t.text += "Great!\n★★★";
                     break;
                 case globals.bestclear.FourStar:
-                    t.text += "★★★★";
+                    t.text += "Awesome!\n★★★★";
                     break;
                 case globals.bestclear.FullCombo:
-                    t.text += "★★★★★ FC";
+                    t.text += "Perfect!\n★★★★★ FC";
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -645,7 +652,7 @@ namespace combomod
             c.r = 0f;
             c.a = 1f;
             img.color = c;
-            yield return new WaitForSeconds(1.5f);
+            yield return new WaitForSeconds(3.5f);
             const float fadeTime = 4f;
 
             
@@ -670,8 +677,20 @@ namespace combomod
                 case "GG_Vengefly":
                     godmasterLevel = 0;
                     break;
+                case "GG_Ghost_Xero":
+                    godmasterLevel = 1;
+                    break;
+                case "GG_Hive_Knight":
+                    godmasterLevel = 2;
+                    break;
+                case "GG_Crystal_Guardian_2":
+                    godmasterLevel = 3;
+                    break;
+                case "GG_Vengefly_V":
+                    godmasterLevel = 4;
+                    break;
                 default:
-                    currentLevel = 0;
+                    godmasterLevel = 0;
                     break;
             }
             
