@@ -154,6 +154,9 @@ namespace combomod
         private int dmgResetCombo(ref int hazardType, int damage)
         {
             if (!canTakeDamage(hazardType) || damage <= 0) return damage;
+
+            if ( (globals.fileSettings.onlyEnableInGodmaster && !inGodmasterBattle) || 
+                 !globals.fileSettings.comboLossOnHit) return damage;
              
             if (inGodmasterBattle)
             {
@@ -190,6 +193,12 @@ namespace combomod
 
         private void hitEnemy(On.HealthManager.orig_TakeDamage orig, HealthManager self, HitInstance hitinstance)
         {
+            if (globals.fileSettings.onlyEnableInGodmaster && !inGodmasterBattle)
+            {
+                orig(self, hitinstance);
+                return;
+            }
+            
             barActive = true;
             
             if (globals.fileSettings.comboAffectsPlayerDamage)
