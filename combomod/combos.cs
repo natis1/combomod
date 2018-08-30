@@ -700,6 +700,7 @@ namespace combomod
             updateComboBars();
             currentLevel = 0;
             godmasterTotalHits = 0;
+            godmasterBestCombo = 0;
             numFails = 0;
             numBindings = 0;
 
