@@ -65,8 +65,8 @@ namespace combomod
                 default:
                     return false;
             }
-            combo_mod.log("String is " + s);
-            combo_mod.log("Found bestclear in first char? " + flag1 + " found numbindings in second char? " + flag2);
+            //combo_mod.log("String is " + s);
+            //combo_mod.log("Found bestclear in first char? " + flag1 + " found numbindings in second char? " + flag2);
 
             return (flag1 && flag2);
         }

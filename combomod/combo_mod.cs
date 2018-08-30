@@ -168,7 +168,7 @@ namespace combomod
             log("Adding combos to game!");
             globals.fileSettings = globalSettings;
             GameManager.instance.gameObject.GetOrAddComponent<combos>();
-            GameManager.instance.gameObject.GetOrAddComponent<dump_scene>();
+            //GameManager.instance.gameObject.GetOrAddComponent<dump_scene>();
         }
         
         
